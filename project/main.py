@@ -1,11 +1,12 @@
 import asyncio
 import logging
-import utils
-from fastapi import FastAPI, Response
-from fastapi.responses import JSONResponse
 
-from models import DataMountModel
+import utils
+from fastapi import FastAPI
+from fastapi import Response
+from fastapi.responses import JSONResponse
 from log import getLogger
+from models import DataMountModel
 
 mounts = {}
 lock = asyncio.Lock()
@@ -27,33 +28,36 @@ async def post(item: DataMountModel):
     async with lock:
         if item.path in mounts:
             log.warning(f"{item.path} already mounted")
-            return JSONResponse(status_code=400, content={"detail": f"{item.path} already mounted"})
+            return JSONResponse(
+                status_code=400, content={"detail": f"{item.path} already mounted"}
+            )
     try:
         async with lock:
             log.info(f"Mount {item.path} ...")
             success, error_process = await utils.mount(item)
             if success:
                 log.info(f"Mount {item.path} ... successful")
-                
-                
+
                 # When the process is no longer running
                 # we remove it from the mounts dict
                 async def done_callback(process, path):
-                    await process.wait()                    
+                    await process.wait()
                     async with lock:
                         if path in mounts:
                             del mounts[path]
-                
+
                 task = asyncio.create_task(done_callback(error_process, item.path))
                 background_tasks.add(task)
                 task.add_done_callback(background_tasks.discard)
-                
+
                 mounts[item.path] = {
-                  "process": error_process,
-                  "model": item.model_dump()
+                    "process": error_process,
+                    "model": item.model_dump(),
                 }
             else:
-                log.info(f"Mount {item.path} ... failed. Error: {error_process.get('error', 'unknown')}")
+                log.info(
+                    f"Mount {item.path} ... failed. Error: {error_process.get('error', 'unknown')}"
+                )
         if success:
             return Response(status_code=204)
         else:
@@ -62,12 +66,14 @@ async def post(item: DataMountModel):
         log.exception(f"Mount {item.path} failed")
         return JSONResponse(status_code=400, content={"detail": str(e)})
 
+
 @app.get("/")
 async def get():
     global mounts
     async with lock:
-        models = {path: entry["model"] for path, entry in mounts.items()} 
+        models = {path: entry["model"] for path, entry in mounts.items()}
         return JSONResponse(content=models)
+
 
 @app.delete("/{path}")
 async def delete(path: str):

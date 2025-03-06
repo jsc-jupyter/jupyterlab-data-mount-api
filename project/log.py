@@ -1,14 +1,15 @@
-from copy import deepcopy
 import logging
 import os
 import socket
 import sys
-import yaml
+from copy import deepcopy
 
+import yaml
 from jsonformatter import JsonFormatter
 
 logged_logger_name = "DataMount"
 logger = None
+
 
 class ExtraFormatter(logging.Formatter):
     dummy = logging.LogRecord(None, None, None, None, None, None, None)
@@ -89,38 +90,37 @@ supported_formatter_kwargs = {
     "simple": {"fmt": simple_fmt},
 }
 
+
 def getLogger():
     global logger
     if not logger:
         logger = createLogger()
     return logger
 
+
 def createLogger():
     logging_config_path = os.environ.get("LOGGING_CONFIG_FILE", None)
-    logger = logging.getLogger()    
+    logger = logging.getLogger()
     logger.setLevel(10)
     if logging_config_path:
         with open(logging_config_path, "r") as f:
             logging_config = yaml.full_load(f)
     else:
+
         logging_config = {
-          "stream": {
-              "enabled": True,
-              "level": 10,
-              "formatter": "simple",
-              "stream": "ext://sys.stdout"
-          }
+            "stream": {
+                "enabled": True,
+                "level": 10,
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
+            }
         }
     handler_names = [x.name for x in logger.handlers]
     for handler_name, handler_config in logging_config.items():
-        if (
-            not handler_config.get("enabled", False)
-        ) and handler_name in handler_names:
+        if (not handler_config.get("enabled", False)) and handler_name in handler_names:
             # Handler was disabled, remove it
             logger.debug(f"Logging handler remove ({handler_name}) ... ")
-            logger.handlers = [
-                x for x in logger_handlers if x.name != handler_name
-            ]
+            logger.handlers = [x for x in logger_handlers if x.name != handler_name]
             logger.debug(f"Logging handler remove ({handler_name}) ... done")
         elif handler_config.get("enabled", False):
             # Recreate handlers which has changed their config
@@ -149,20 +149,16 @@ def createLogger():
                 _ = configuration.pop(x)
 
             # Create handler, formatter, and add it
-            handler = supported_handler_classes[handler_name](
-                **configuration
+            handler = supported_handler_classes[handler_name](**configuration)
+            formatter = supported_formatter_classes[formatter_name](
+                **supported_formatter_kwargs[formatter_name]
             )
-            formatter = supported_formatter_classes[
-                formatter_name
-            ](**supported_formatter_kwargs[formatter_name])
             handler.name = handler_name
             handler.setLevel(level)
             handler.setFormatter(formatter)
             if handler_name in handler_names:
                 # Remove previously added handler
-                logger.handlers = [
-                    x for x in logger_handlers if x.name != handler_name
-                ]
+                logger.handlers = [x for x in logger_handlers if x.name != handler_name]
             logger.addHandler(handler)
 
             if "filename" in configuration:
