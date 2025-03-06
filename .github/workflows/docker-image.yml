@@ -1,0 +1,38 @@
+name: Build and Push Docker image to Docker Hub
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on any tag starting with "v" (e.g., v1.0, v2.1.3, etc.)
+  release:
+    types:
+      - published  # Trigger when a new release is published
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Step 2: Set up Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    # Step 3: Log in to Docker Hub using GitHub Secrets
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # Step 4: Build and push the Docker image
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ secrets.DOCKER_USERNAME }}/jupyterlab-data-mount-api:${{ github.ref_name }}  # Tag the image with the release or tag name
