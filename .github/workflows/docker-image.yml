@@ -35,4 +35,6 @@ jobs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/jupyterlab-data-mount-api:${{ github.ref_name }}  # Tag the image with the release or tag name
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/jupyterlab-data-mount-api:${{ github.ref_name }}
+          ${{ secrets.DOCKER_USERNAME }}/jupyterlab-data-mount-api:latest
