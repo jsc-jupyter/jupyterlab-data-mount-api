@@ -1,11 +1,12 @@
+import json
 import logging
 import os
 import socket
 import sys
 from copy import deepcopy
 
-import yaml
 from jsonformatter import JsonFormatter
+from values import base_mount_dir
 
 logged_logger_name = "DataMount"
 logger = None
@@ -72,7 +73,11 @@ supported_handler_classes = {
 
 # supported formatters and their arguments
 hostname = os.environ.get("hostname", "unknown")
-supported_formatter_classes = {"json": JsonFormatter, "simple": ExtraFormatter}
+supported_formatter_classes = {
+    "json": JsonFormatter,
+    "simple": ExtraFormatter,
+    "simple_user": ExtraFormatter,
+}
 json_fmt = {
     "asctime": "asctime",
     "levelno": "levelno",
@@ -85,9 +90,11 @@ json_fmt = {
     "Message": "message",
 }
 simple_fmt = f"%(asctime)s logger={logged_logger_name} hostname={hostname} levelno=%(levelno)s levelname=%(levelname)s file=%(pathname)s line=%(lineno)d function=%(funcName)s : %(message)s"
+simple_user = f"%(asctime)s levelname=%(levelname)s file=%(pathname)s line=%(lineno)d: %(message)s"
 supported_formatter_kwargs = {
     "json": {"fmt": json_fmt, "mix_extra": True},
     "simple": {"fmt": simple_fmt},
+    "simple_user": {"fmt": simple_user},
 }
 
 
@@ -101,20 +108,27 @@ def getLogger():
 def createLogger():
     logging_config_path = os.environ.get("LOGGING_CONFIG_FILE", None)
     logger = logging.getLogger()
+    logging_config = {
+        "stream": {
+            "enabled": True,
+            "level": 10,
+            "formatter": "simple",
+            "stream": "ext://sys.stdout",
+        },
+        "file": {
+            "enabled": True,
+            "level": 20,
+            "formatter": "simple_user",
+            "filename": os.path.join(base_mount_dir, "mount.log"),
+        },
+    }
     logger.setLevel(10)
     if logging_config_path:
         with open(logging_config_path, "r") as f:
-            logging_config = yaml.full_load(f)
-    else:
+            logging_config_update = json.load(f)
+        logging_config.update(logging_config_update)
 
-        logging_config = {
-            "stream": {
-                "enabled": True,
-                "level": 10,
-                "formatter": "simple",
-                "stream": "ext://sys.stdout",
-            }
-        }
+    logger_handlers = logger.handlers
     handler_names = [x.name for x in logger.handlers]
     for handler_name, handler_config in logging_config.items():
         if (not handler_config.get("enabled", False)) and handler_name in handler_names:

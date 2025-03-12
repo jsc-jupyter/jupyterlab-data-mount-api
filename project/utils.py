@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import tempfile
 from copy import deepcopy
@@ -8,6 +9,21 @@ from models import DataMountModel
 from values import base_mount_dir
 from values import gid
 from values import uid
+
+
+lock = asyncio.Lock()
+background_tasks = set()
+mounts = {}
+
+
+def get_lock():
+    global lock
+    return lock
+
+
+def get_mounts():
+    global mounts
+    return mounts
 
 
 def type_specific_args(item: DataMountModel):
@@ -131,10 +147,11 @@ async def check_rclone_config(item: DataMountModel, config_path: str):
         log.info(f"Check rclone config ... failed")
         log.info(stderr.decode().strip())
         description = {
-            "config": config_string,
             "error": stderr.decode().strip(),
             "message": f"Config not working. Exit Code {process.returncode}",
         }
+        if not item.options["external"]:
+            description["config"] = config_string
         return description
     log.info(f"Check rclone config ... successful")
 
@@ -146,19 +163,42 @@ async def run_rclone_mount(command: list):
 
 
 async def mount(item: DataMountModel):
+    global mounts
     log = getLogger()
     validate(item)
     config_path = await create_config(item)
     cmd = get_cmd(item, config_path)
     config_error = await check_rclone_config(item, config_path)
     if config_error:
+        log.info(
+            f"Mount {item.path} ... failed. Error: {config_error.get('error', 'unknown')}"
+        )
         return False, config_error
     log.debug(f"Run cmd: {' '.join(cmd)}")
     process = await run_rclone_mount(cmd)
-    return True, process
+    log.info(f"Mount {item.path} ... successful")
+
+    # When the process is no longer running
+    # we remove it from the mounts dict
+    async def done_callback(process, path):
+        await process.wait()
+        async with lock:
+            if path in mounts:
+                del mounts[path]
+
+    task = asyncio.create_task(done_callback(process, item.path))
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+
+    mounts[item.path] = {
+        "process": process,
+        "model": item.model_dump(),
+    }
+    return True, None
 
 
-async def unmount(path: str, mount_process: asyncio.subprocess.Process):
+async def unmount(path: str):
+    mount_process = mounts[path]["process"]
     fullpath = os.path.join(base_mount_dir, path)
     process = await asyncio.create_subprocess_exec(
         *["umount", fullpath],
@@ -171,7 +211,32 @@ async def unmount(path: str, mount_process: asyncio.subprocess.Process):
     if process.returncode != 0:
         raise Exception(stderr)
 
-    mount_process.terminate()
-    await mount_process.wait()
+    try:
+        mount_process.terminate()
+        await mount_process.wait()
+    except ProcessLookupError:
+        pass
 
     os.rmdir(fullpath)
+
+
+async def init_mounts():
+    init_mounts_path = os.environ.get("INIT_MOUNTS", "/mnt/init_mounts/mounts.json")
+    log = getLogger()
+    if os.path.exists(init_mounts_path):
+        log.info("Init mounts ...")
+        mounts = {}
+        with open(init_mounts_path) as f:
+            mounts = json.load(f)
+        for mount_config in mounts:
+            item = DataMountModel(**mount_config)
+            item.options["external"] = True
+            try:
+                log.info(f"Mount {item.path} ...")
+                success, error_process = await mount(item)
+                if not success:
+                    raise Exception(f"Mount failed: {error_process}")
+            except:
+                log.exception(
+                    f"Mount {mount_config.get('path', 'unknown path')} failed"
+                )

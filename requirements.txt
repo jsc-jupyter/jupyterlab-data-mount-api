@@ -13,8 +13,6 @@ packaging==24.2
 
 jsonformatter==0.3.4
 
-PyYAML==6.0.2
-
 uvicorn==0.34.0
 h11==0.14.0
 click==8.1.8
