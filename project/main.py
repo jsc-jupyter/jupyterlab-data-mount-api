@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 import utils
 from fastapi import FastAPI
+from fastapi import Query
 from fastapi import Response
 from fastapi.responses import JSONResponse
 from log import getLogger
@@ -14,6 +15,8 @@ from values import base_mount_dir
 async def lifespan(app: FastAPI):
     await utils.init_mounts()
     yield
+    for path in utils.get_mounts().keys():
+        await utils.unmount(path, force=True)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -62,14 +65,14 @@ async def get():
 
 
 @app.delete("/{path:path}")
-async def delete(path: str):
+async def delete(path: str, force: bool = Query(False)):
     if path not in utils.get_mounts():
         log.debug(f"{path} not found")
         return JSONResponse(status_code=404, content={"detail": "Mount not found"})
     try:
         async with utils.get_lock():
             log.info(f"Unmount {path} ...")
-            await utils.unmount(path)
+            await utils.unmount(path, force=force)
             log.info(f"Unmount {path} ... successful")
         return Response(status_code=204)
     except Exception as e:

@@ -197,7 +197,7 @@ async def mount(item: DataMountModel):
     return True, None
 
 
-async def unmount(path: str):
+async def unmount(path: str, force: bool = False):
     mount_process = mounts[path]["process"]
     fullpath = os.path.join(base_mount_dir, path)
     process = await asyncio.create_subprocess_exec(
@@ -208,7 +208,7 @@ async def unmount(path: str):
     stdout, stderr = await process.communicate()
     stdout = stdout.decode().strip()
     stderr = stderr.decode().strip()
-    if process.returncode != 0:
+    if process.returncode != 0 and not force:
         raise Exception(stderr)
 
     try:
@@ -216,6 +216,16 @@ async def unmount(path: str):
         await mount_process.wait()
     except ProcessLookupError:
         pass
+
+    if process.returncode != 0:
+        # first umount failed, call umount with -l
+        # That's only called with force: true
+        lazy_process = await asyncio.create_subprocess_exec(
+            *["umount", "-l", fullpath],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await process.communicate()
 
     os.rmdir(fullpath)
 
