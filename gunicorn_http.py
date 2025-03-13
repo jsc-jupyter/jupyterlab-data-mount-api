@@ -1,5 +1,4 @@
 import os
-from time import sleep
 
 # https://github.com/benoitc/gunicorn/blob/master/examples/example_config.py
 # https://docs.gunicorn.org/en/latest/settings.html#worker-class#
@@ -22,7 +21,6 @@ from time import sleep
 #       Must be a positive integer. Generally set in the 64-2048
 #       range.
 #
-sleep(60)
 bind = "0.0.0.0:8090"
 backlog = 2048
 preload_app = True
