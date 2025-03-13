@@ -163,6 +163,7 @@ async def run_rclone_mount(command: list):
 
 
 async def mount(item: DataMountModel):
+    log.info(f"Mount {item.path} ...")
     global mounts
     log = getLogger()
     validate(item)
