@@ -15,7 +15,9 @@ from values import base_mount_dir
 async def lifespan(app: FastAPI):
     await utils.init_mounts()
     yield
-    for path in utils.get_mounts().keys():
+
+    mount_paths = list(utils.get_mounts().keys())
+    for path in mount_paths:
         await utils.unmount(path, force=True)
 
 
@@ -39,7 +41,6 @@ async def post(item: DataMountModel):
             )
     try:
         async with utils.get_lock():
-            log.info(f"Mount {item.path} ...")
             success, error_process = await utils.mount(item)
         if success:
             return Response(status_code=204)
