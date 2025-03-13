@@ -72,7 +72,7 @@ supported_handler_classes = {
 }
 
 # supported formatters and their arguments
-hostname = os.environ.get("hostname", "unknown")
+hostname = os.environ.get("HOSTNAME", "unknown")
 supported_formatter_classes = {
     "json": JsonFormatter,
     "simple": ExtraFormatter,
