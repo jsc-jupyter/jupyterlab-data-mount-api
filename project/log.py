@@ -106,7 +106,9 @@ def getLogger():
 
 
 def createLogger():
-    logging_config_path = os.environ.get("LOGGING_CONFIG_FILE", None)
+    logging_config_path = os.environ.get(
+        "LOGGING_CONFIG_FILE", "/mnt/config/logging.json"
+    )
     logger = logging.getLogger()
     logging_config = {
         "stream": {
@@ -123,7 +125,7 @@ def createLogger():
         },
     }
     logger.setLevel(10)
-    if logging_config_path:
+    if logging_config_path and os.path.exists(logging_config_path):
         with open(logging_config_path, "r") as f:
             logging_config_update = json.load(f)
         logging_config.update(logging_config_update)

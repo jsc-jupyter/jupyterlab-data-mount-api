@@ -232,7 +232,7 @@ async def unmount(path: str, force: bool = False):
 
 
 async def init_mounts():
-    init_mounts_path = os.environ.get("INIT_MOUNTS", "/mnt/init_mounts/mounts.json")
+    init_mounts_path = os.environ.get("INIT_MOUNTS", "/mnt/config/mounts.json")
     log = getLogger()
     if os.path.exists(init_mounts_path):
         log.info("Init mounts ...")
