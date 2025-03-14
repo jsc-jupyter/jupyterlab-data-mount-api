@@ -5,3 +5,4 @@
   
 This is the backend implementation for the [JupyterLab DataMount Extension](https://github.com/jsc-jupyter/jupyterlab-data-mount).  
   
+![JupyterLab](https://jsc-jupyter.github.io/jupyterlab-data-mount/images/jupyterlab.png)
