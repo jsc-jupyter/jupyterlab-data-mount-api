@@ -153,7 +153,8 @@ def createLogger():
                     configuration["socktype"] = socket.SOCK_STREAM
                 elif configuration["socktype"] == "ext://socket.SOCK_DGRAM":
                     configuration["socktype"] = socket.SOCK_DGRAM
-
+                if configuration["address"]:
+                    configuration["address"] = tuple(configuration["address"])
             _ = configuration.pop("enabled")
             formatter_name = configuration.pop("formatter")
             level = get_level(configuration.pop("level"))
