@@ -1,5 +1,8 @@
-# Data Mount API 
+# JupyterLab DataMount REST API
 
-This little REST API is used to offer a REST API for rclone management.  
-Developed to work together with the JupyterLab [DataMount](https://google.com) extension and the JupyterHub [DataMountSpawner](https://google.com).  
+[![Documentation](https://img.shields.io/badge/Documentation-passed-green)](https://jsc-jupyter.github.io/jupyterlab-data-mount/architecture/backend_api/)
+[![Docker](https://img.shields.io/badge/DockerImage-passed-green)](https://hub.docker.com/r/jupyterjsc/jupyterlab-data-mount-api)
   
+This is the backend implementation for the [JupyterLab DataMount Extension](https://github.com/jsc-jupyter/jupyterlab-data-mount).  
+  
+![JupyterLab](https://jsc-jupyter.github.io/jupyterlab-data-mount/images/jupyterlab.png)
