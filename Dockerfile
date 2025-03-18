@@ -11,8 +11,11 @@ RUN apk add --virtual=build_dependencies && \
 
 RUN mkdir /mnt/data_mounts
 COPY ./ /opt/datamount
-    
+
+ENV FUSE_LIBRARY_PATH=/usr/lib/libfuse3.so.3
+
 USER root
 EXPOSE 8090
+EXPOSE 53682
 WORKDIR /opt/datamount/project
 ENTRYPOINT ["/opt/datamount_venv/bin/gunicorn", "-c", "/opt/datamount/gunicorn_http.py", "main:app"]

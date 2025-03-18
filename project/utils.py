@@ -27,9 +27,9 @@ def get_mounts():
 
 
 def type_specific_args(item: DataMountModel):
-    type_ = item.options.get("config", {}).get("type", None)
-    vendor_ = item.options.get("config", {}).get("vendor", None)
-    url_ = item.options.get("config", {}).get("url", None)
+    type_ = item.options.config.get("type", None)
+    vendor_ = item.options.config.get("vendor", None)
+    url_ = item.options.config.get("url", None)
     if (
         type_ == "webdav"
         and vendor_ == "nextcloud"
@@ -53,18 +53,18 @@ async def obscure(value: str):
 def validate(item: DataMountModel):
     if not item.path:
         raise Exception("path not provided")
-    if not item.options.get("template", None):
+    if not item.options.template:
         raise Exception("options.template not provided")
-    if not item.options.get("config", {}).get("type", None):
+    if not item.options.config.get("type", None):
         raise Exception("options.config.type not provided")
-    if not item.options.get("config", {}).get("remotepath", None):
+    if not item.options.config.get("remotepath", None):
         raise Exception("options.config.remotepath not provided")
 
 
 def get_cmd(item: DataMountModel, config_path: str):
-    template = item.options.get("template", None)
+    template = item.options.template
     path = item.path
-    remotepath = item.options.get("config", {}).get("remotepath", "None")
+    remotepath = item.options.config.get("remotepath", "None")
     fullpath = os.path.join(base_mount_dir, path)
     if not os.path.exists(fullpath):
         os.makedirs(fullpath, exist_ok=True)
@@ -89,7 +89,7 @@ def get_cmd(item: DataMountModel, config_path: str):
         fullpath,
     ] + cmd_args
     cmd += type_specific_args(item)
-    if item.options.get("readonly", False):
+    if item.options.readonly:
         cmd += ["--read-only"]
     return cmd
 
@@ -101,12 +101,10 @@ async def create_config(item: DataMountModel):
         "remotepath",
     }  # They're used in the command as arguments, not in the config file itself
     config = {
-        k: v
-        for k, v in deepcopy(item.options.get("config", {})).items()
-        if k not in skip_keys
+        k: v for k, v in deepcopy(item.options.config).items() if k not in skip_keys
     }
 
-    template = item.options.get("template", None)
+    template = item.options.template
 
     s = f"[{template}]"
     for key, value in config.items():
@@ -126,8 +124,8 @@ async def check_rclone_config(item: DataMountModel, config_path: str):
     """Runs 'rclone lsd' to check if the remote storage is accessible."""
     log = getLogger()
     log.info(f"Check rclone config ...")
-    template = item.options.get("template", None)
-    remotepath = item.options.get("config", {}).get("remotepath", "None")
+    template = item.options.template
+    remotepath = item.options.config.get("remotepath", "None")
     cmd = [
         "rclone",
         "lsd",
@@ -150,15 +148,17 @@ async def check_rclone_config(item: DataMountModel, config_path: str):
             "error": stderr.decode().strip(),
             "message": f"Config not working. Exit Code {process.returncode}",
         }
-        if not item.options["external"]:
+        if not item.options.external:
             description["config"] = config_string
         return description
     log.info(f"Check rclone config ... successful")
 
 
-async def run_rclone_mount(command: list):
+async def run_process(command: list):
     """Run rclone mount command asynchronously."""
-    process = await asyncio.create_subprocess_exec(*command)
+    process = await asyncio.create_subprocess_exec(
+        *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
     return process
 
 
@@ -176,7 +176,7 @@ async def mount(item: DataMountModel):
         )
         return False, config_error
     log.debug(f"Run cmd: {' '.join(cmd)}")
-    process = await run_rclone_mount(cmd)
+    process = await run_process(cmd)
     log.info(f"Mount {item.path} ... successful")
 
     # When the process is no longer running
@@ -241,7 +241,7 @@ async def init_mounts():
             mounts = json.load(f)
         for mount_config in mounts:
             item = DataMountModel(**mount_config)
-            item.options["external"] = True
+            item.options.external = True
             try:
                 log.info(f"Mount {item.path} ...")
                 success, error_process = await mount(item)

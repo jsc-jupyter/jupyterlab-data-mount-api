@@ -16,3 +16,6 @@ jsonformatter==0.3.4
 uvicorn==0.34.0
 h11==0.14.0
 click==8.1.8
+
+pyunicore==1.2.0
+fusepy==3.0.1
