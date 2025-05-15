@@ -66,7 +66,7 @@ async def get():
 
 
 @app.delete("/{path:path}")
-async def delete(path: str, force: bool = Query(False)):
+async def delete(path: str, force: bool = Query(True)):
     if path not in utils.get_mounts():
         log.debug(f"{path} not found")
         return JSONResponse(status_code=404, content={"detail": "Mount not found"})

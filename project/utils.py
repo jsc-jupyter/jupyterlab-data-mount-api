@@ -2,14 +2,15 @@ import asyncio
 import json
 import os
 import tempfile
+import traceback
 from copy import deepcopy
 
+import uftp
 from log import getLogger
 from models import DataMountModel
 from values import base_mount_dir
 from values import gid
 from values import uid
-
 
 lock = asyncio.Lock()
 background_tasks = set()
@@ -45,7 +46,7 @@ async def obscure(value: str):
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, stderr = await process.communicate()
+    stdout, _ = await process.communicate()
     stdout = stdout.decode().strip()
     return stdout
 
@@ -137,7 +138,7 @@ async def check_rclone_config(item: DataMountModel, config_path: str):
     process = await asyncio.create_subprocess_exec(
         *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    stdout, stderr = await process.communicate()
+    _, stderr = await process.communicate()
 
     if process.returncode != 0:
         with open(config_path) as f:
@@ -159,7 +160,25 @@ async def run_process(command: list):
     process = await asyncio.create_subprocess_exec(
         *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    return process
+    try:
+        # Wait up to 1 second to see if process exits immediately
+        await asyncio.wait_for(process.wait(), timeout=1.0)
+        # Process exited quickly — check the return code
+        _, stderr = await process.communicate()
+        raise RuntimeError(
+            f"Process exited early with code {process.returncode}:\n{stderr.decode().strip()}"
+        )
+    except asyncio.TimeoutError:
+        # Process is still running — treat as successful launch
+        return process
+
+
+def is_directory_usable(path: str) -> bool:
+    try:
+        return os.path.isdir(path) and os.listdir(path) is not None
+    except Exception as e:
+        print(f"[Error] Directory '{path}' is not usable: {e}")
+        return False
 
 
 async def mount(item: DataMountModel):
@@ -167,17 +186,19 @@ async def mount(item: DataMountModel):
     log = getLogger()
     log.info(f"Mount {item.path} ...")
     validate(item)
-    config_path = await create_config(item)
-    cmd = get_cmd(item, config_path)
-    config_error = await check_rclone_config(item, config_path)
-    if config_error:
-        log.info(
-            f"Mount {item.path} ... failed. Error: {config_error.get('error', 'unknown')}"
-        )
-        return False, config_error
+    if item.options.template == "uftp":
+        cmd = uftp.cmd(item)
+    else:
+        config_path = await create_config(item)
+        cmd = get_cmd(item, config_path)
+        config_error = await check_rclone_config(item, config_path)
+        if config_error:
+            log.info(
+                f"Mount {item.path} ... failed. Error: {config_error.get('error', 'unknown')}"
+            )
+            return False, config_error
     log.debug(f"Run cmd: {' '.join(cmd)}")
     process = await run_process(cmd)
-    log.info(f"Mount {item.path} ... successful")
 
     # When the process is no longer running
     # we remove it from the mounts dict
@@ -195,6 +216,14 @@ async def mount(item: DataMountModel):
         "process": process,
         "model": item.model_dump(),
     }
+
+    fullpath = os.path.join(base_mount_dir, item.path)
+    if not is_directory_usable(fullpath):
+        raise Exception(
+            "Mount failed. Directory not usable. Check if remote path exists."
+        )
+
+    log.info(f"Mount {item.path} ... successful")
     return True, None
 
 
@@ -221,7 +250,7 @@ async def unmount(path: str, force: bool = False):
     if process.returncode != 0:
         # first umount failed, call umount with -l
         # That's only called with force: true
-        lazy_process = await asyncio.create_subprocess_exec(
+        await asyncio.create_subprocess_exec(
             *["umount", "-l", fullpath],
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

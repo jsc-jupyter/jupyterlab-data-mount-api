@@ -12,7 +12,8 @@ RUN apk add --virtual=build_dependencies && \
 RUN mkdir /mnt/data_mounts
 COPY ./ /opt/datamount
 
-ENV FUSE_LIBRARY_PATH=/usr/lib/libfuse3.so.3
+#ENV FUSE_LIBRARY_PATH=/usr/lib/libfuse3.so.3
+ENV FUSE_LIBRARY_PATH=/usr/lib/libfuse.so.2
 
 USER root
 EXPOSE 8090
