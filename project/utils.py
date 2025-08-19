@@ -164,14 +164,14 @@ async def check_rclone_config(item: DataMountModel, config_path: str):
     log.info(f"Check rclone config ... successful")
 
 
-async def run_process(command: list):
+async def run_process(command: list, timeout: float = 1.0):
     """Run rclone mount command asynchronously."""
     process = await asyncio.create_subprocess_exec(
         *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
     try:
-        # Wait up to 1 second to see if process exits immediately
-        await asyncio.wait_for(process.wait(), timeout=1.0)
+        # Wait up to 5 second to see if process exits immediately
+        await asyncio.wait_for(process.wait(), timeout=timeout)
         # Process exited quickly — check the return code
         _, stderr = await process.communicate()
         raise RuntimeError(
@@ -195,10 +195,12 @@ async def mount(item: DataMountModel):
     log = getLogger()
     log.info(f"Mount {item.path} ...")
     validate(item)
+    timeout = 1.0
     if item.options.template == "uftp":
         cmd = uftp.cmd(item)
     elif item.options.template == "nfs":
         cmd = nfs.cmd(item)
+        timeout = 5.0
     else:
         config_path = await create_config(item)
         cmd = get_cmd(item, config_path)
@@ -209,7 +211,7 @@ async def mount(item: DataMountModel):
             )
             return False, config_error
     log.debug(f"Run cmd: {' '.join(cmd)}")
-    process = await run_process(cmd)
+    process = await run_process(cmd, timeout)
 
     # When the process is no longer running
     # we remove it from the mounts dict
@@ -239,7 +241,6 @@ async def mount(item: DataMountModel):
 
 
 async def unmount(path: str, force: bool = False):
-    mount_process = mounts[path]["process"]
     fullpath = os.path.join(base_mount_dir, path)
     process = await asyncio.create_subprocess_exec(
         *["umount", fullpath],
@@ -253,8 +254,10 @@ async def unmount(path: str, force: bool = False):
         raise Exception(stderr)
 
     try:
-        mount_process.terminate()
-        await mount_process.wait()
+        mount_process = mounts.get(path, {}).get("process", None)
+        if mount_process:
+            mount_process.terminate()
+            await mount_process.wait()
     except ProcessLookupError:
         pass
 

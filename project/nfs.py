@@ -60,16 +60,17 @@ def cmd(item: DataMountModel):
         if os.listdir(fullpath):
             raise Exception(f"Directory {path} is not empty.")
     cmd = [
-        "mount",
-        "-t",
-        "nfs",
-        "-o"
+        "timeout",
+        "3s",
+        "mount.nfs4"
     ]
-    options = ["vers=4"]
+    options = []
     if item.options.readonly:
         options.append("ro")
-    options_str = ','.join(options)
-    cmd.append(options_str)
+    if len(options) > 0:
+        options_str = ','.join(options)
+        cmd.append("-o")
+        cmd.append(options_str)
     cmd.append(f"{server}:{remotepath}")
     cmd.append(fullpath)
     check_cmd = ["&&", "while", "grep", "-qs", f"\"{fullpath} \"", "/proc/mounts;", "do", "sleep", "1;", "done"]

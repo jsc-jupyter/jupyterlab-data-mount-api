@@ -49,6 +49,11 @@ async def post(item: DataMountModel):
     except Exception as e:
         log.exception(f"Mount {item.path} failed")
         fullpath = os.path.join(base_mount_dir, item.path)
+        try:
+            await utils.unmount(item.path, force=True)
+        except:
+            log.exception("After mount failed the attempt to unmount it threw an exception as well")
+            pass
         err = str(e).replace(fullpath, item.path)
         return JSONResponse(status_code=400, content={"detail": err})
 
