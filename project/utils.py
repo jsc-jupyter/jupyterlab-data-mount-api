@@ -2,10 +2,10 @@ import asyncio
 import json
 import os
 import tempfile
-import traceback
 from copy import deepcopy
 
 import uftp
+import nfs
 from log import getLogger
 from models import DataMountModel
 from values import base_mount_dir
@@ -56,10 +56,19 @@ def validate(item: DataMountModel):
         raise Exception("path not provided")
     if not item.options.template:
         raise Exception("options.template not provided")
-    if not item.options.config.get("type", None):
-        raise Exception("options.config.type not provided")
-    if not item.options.config.get("remotepath", None):
-        raise Exception("options.config.remotepath not provided")
+    if item.options.template == "nfs":
+        validation, description = nfs.validate(item)
+        if not validation:
+            raise Exception(description.get("message", ""))
+    elif item.options.template == "uftp":
+        validation, description = uftp.validate(item)
+        if not validation:
+            raise Exception(description.get("message", ""))
+    else:
+        if not item.options.config.get("type", None):
+            raise Exception("options.config.type not provided")
+        if not item.options.config.get("remotepath", None):
+            raise Exception("options.config.remotepath not provided")
 
 
 def get_cmd(item: DataMountModel, config_path: str):
@@ -188,6 +197,8 @@ async def mount(item: DataMountModel):
     validate(item)
     if item.options.template == "uftp":
         cmd = uftp.cmd(item)
+    elif item.options.template == "nfs":
+        cmd = nfs.cmd(item)
     else:
         config_path = await create_config(item)
         cmd = get_cmd(item, config_path)
