@@ -1,3 +1,4 @@
+import ipaddress
 import os
 
 from models import DataMountModel
@@ -10,22 +11,36 @@ def validate(item: DataMountModel):
     if os.environ.get("NFS_ENABLED", "false") in ["false", "0"]:
         description = {
             "error": "",
-            "message": f"Config not working. nfs disabled",
+            "message": "Config not working. nfs disabled",
         }
         return False, description
 
     if not item.options.config.get("server", None):
         description = {
             "error": "",
-            "message": f"Config not working. server required",
+            "message": "Config not working. server required",
         }
         return False, description
+
     if not item.options.config.get("remotepath", None):
         description = {
             "error": "",
-            "message": f"Config not working. remotepath required",
+            "message": "Config not working. remotepath required",
         }
         return False, description
+
+    blocked_nfs_list = os.getenv("NFS_BLOCKED_MOUNTS", "").split(",")
+    blocked_nfs_list = [cidr for cidr in blocked_nfs_list if cidr]
+    server = item.options.config["server"]
+    ip = ipaddress.ip_address(server)
+
+    if any(ip in ipaddress.ip_network(cidr) for cidr in blocked_nfs_list):
+        description = {
+            "error": "",
+            "message": f"Config not working. Server {server} forbidden",
+        }
+        return False, description
+
     return True, None
 
 
