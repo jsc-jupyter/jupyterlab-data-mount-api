@@ -7,6 +7,13 @@ from values import uid
 
 
 def validate(item: DataMountModel):
+    if os.environ.get("NFS_ENABLED", "false") in ["false", "0"]:
+        description = {
+            "error": "",
+            "message": f"Config not working. nfs disabled",
+        }
+        return False, description
+
     if not item.options.config.get("server", None):
         description = {
             "error": "",
