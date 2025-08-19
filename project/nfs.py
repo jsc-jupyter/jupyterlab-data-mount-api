@@ -40,10 +40,14 @@ def cmd(item: DataMountModel):
     cmd = [
         "mount",
         "-t",
-        "nfs"
+        "nfs",
+        "-o"
     ]
+    options = ["vers=4"]
     if item.options.readonly:
-        cmd.append("-o ro")
+        options.append("ro")
+    options_str = ','.join(options)
+    cmd.append(options_str)
     cmd.append(f"{server}:{remotepath}")
     cmd.append(fullpath)
     check_cmd = ["&&", "while", "grep", "-qs", f"\"{fullpath} \"", "/proc/mounts;", "do", "sleep", "1;", "done"]
