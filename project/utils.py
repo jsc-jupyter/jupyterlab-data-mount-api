@@ -84,7 +84,7 @@ def get_cmd(item: DataMountModel, config_path: str):
             raise Exception(f"Directory {path} is not empty.")
     cmd_args = [
         "--vfs-cache-max-size=10G",
-        "--vfs-read-chunk-size=64M",
+        "--vfs-read-chunk-size=4M",
         "--vfs-cache-mode=writes",
         "--allow-other",
         f"--uid={uid}",
