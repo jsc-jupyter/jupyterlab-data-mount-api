@@ -3,6 +3,7 @@ import os
 import shlex
 
 from models import DataMountModel
+from path_utils import resolve_mount_path
 from values import base_mount_dir
 from values import gid
 from values import uid
@@ -53,7 +54,7 @@ def cmd(item: DataMountModel):
     path = item.path
     server = item.options.config.get("server", "None")
     remotepath = item.options.config.get("remotepath", "None")
-    fullpath = os.path.join(base_mount_dir, path)
+    fullpath = resolve_mount_path(path, base_mount_dir)
     if not os.path.exists(fullpath):
         os.makedirs(fullpath, exist_ok=True)
         os.chown(fullpath, uid, gid)

@@ -8,6 +8,7 @@ import uftp
 import nfs
 from log import getLogger
 from models import DataMountModel
+from path_utils import resolve_mount_path
 from values import base_mount_dir
 from values import gid
 from values import uid
@@ -52,8 +53,7 @@ async def obscure(value: str):
 
 
 def validate(item: DataMountModel):
-    if not item.path:
-        raise Exception("path not provided")
+    resolve_mount_path(item.path, base_mount_dir)
     if not item.options.template:
         raise Exception("options.template not provided")
     if item.options.template == "nfs":
@@ -75,7 +75,7 @@ def get_cmd(item: DataMountModel, config_path: str):
     template = item.options.template
     path = item.path
     remotepath = item.options.config.get("remotepath", "None")
-    fullpath = os.path.join(base_mount_dir, path)
+    fullpath = resolve_mount_path(path, base_mount_dir)
     if not os.path.exists(fullpath):
         os.makedirs(fullpath, exist_ok=True)
         os.chown(fullpath, uid, gid)
@@ -230,7 +230,7 @@ async def mount(item: DataMountModel):
         "model": item.model_dump(),
     }
 
-    fullpath = os.path.join(base_mount_dir, item.path)
+    fullpath = resolve_mount_path(item.path, base_mount_dir)
     if not is_directory_usable(fullpath):
         raise Exception(
             "Mount failed. Directory not usable. Check if remote path exists."
@@ -241,7 +241,7 @@ async def mount(item: DataMountModel):
 
 
 async def unmount(path: str, force: bool = False):
-    fullpath = os.path.join(base_mount_dir, path)
+    fullpath = resolve_mount_path(path, base_mount_dir)
     process = await asyncio.create_subprocess_exec(
         *["umount", fullpath],
         stdout=asyncio.subprocess.PIPE,

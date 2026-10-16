@@ -4,6 +4,7 @@ import pyunicore.client as uc_client
 import pyunicore.credentials as uc_credentials
 import pyunicore.uftp.uftp as uc_uftp
 from models import DataMountModel
+from path_utils import resolve_mount_path
 from values import base_mount_dir
 from values import gid
 from values import uid
@@ -54,7 +55,7 @@ def cmd(item: DataMountModel):
     cmd.extend(["-P", _password])
     cmd.append(f"{_host}:{_port}")
     cmd.extend(["--fuse-options", f"uid={uid},gid={gid},allow_other"])
-    fullpath = os.path.join(base_mount_dir, item.path)
+    fullpath = resolve_mount_path(item.path, base_mount_dir)
     cmd.append(fullpath)
     if not os.path.exists(fullpath):
         os.makedirs(fullpath, exist_ok=True)
