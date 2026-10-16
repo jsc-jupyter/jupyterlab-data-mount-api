@@ -8,6 +8,7 @@ from fastapi import Response
 from fastapi.responses import JSONResponse
 from log import getLogger
 from models import DataMountModel
+from template_policy import is_template_allowed
 from values import base_mount_dir
 
 
@@ -28,6 +29,14 @@ log = getLogger()
 
 @app.post("/")
 async def post(item: DataMountModel):
+    item.options.external = False
+    if not is_template_allowed(
+        item.options.template, os.environ.get("JUPYTERLAB_DATA_MOUNT_TEMPLATES")
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"Mount template '{item.options.template}' is not allowed"},
+        )
     try:
         utils.validate(item)
     except Exception as e:
@@ -72,11 +81,20 @@ async def get():
 
 @app.delete("/{path:path}")
 async def delete(path: str, force: bool = Query(True)):
-    if path not in utils.get_mounts():
-        log.debug(f"{path} not found")
-        return JSONResponse(status_code=404, content={"detail": "Mount not found"})
     try:
         async with utils.get_lock():
+            mount = utils.get_mounts().get(path)
+            if mount is None:
+                log.debug(f"{path} not found")
+                return JSONResponse(
+                    status_code=404, content={"detail": "Mount not found"}
+                )
+            options = mount.get("model", {}).get("options", {})
+            if options.get("external", False):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Administrator-provisioned mounts cannot be removed"},
+                )
             log.info(f"Unmount {path} ...")
             await utils.unmount(path, force=force)
             log.info(f"Unmount {path} ... successful")

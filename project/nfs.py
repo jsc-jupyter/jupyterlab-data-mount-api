@@ -1,7 +1,9 @@
 import ipaddress
 import os
+import shlex
 
 from models import DataMountModel
+from path_utils import resolve_mount_path
 from values import base_mount_dir
 from values import gid
 from values import uid
@@ -52,7 +54,7 @@ def cmd(item: DataMountModel):
     path = item.path
     server = item.options.config.get("server", "None")
     remotepath = item.options.config.get("remotepath", "None")
-    fullpath = os.path.join(base_mount_dir, path)
+    fullpath = resolve_mount_path(path, base_mount_dir)
     if not os.path.exists(fullpath):
         os.makedirs(fullpath, exist_ok=True)
         os.chown(fullpath, uid, gid)
@@ -62,17 +64,20 @@ def cmd(item: DataMountModel):
     cmd = [
         "timeout",
         "3s",
-        "mount.nfs4"
+        "mount.nfs4",
     ]
     options = []
     if item.options.readonly:
         options.append("ro")
     if len(options) > 0:
-        options_str = ','.join(options)
+        options_str = ",".join(options)
         cmd.append("-o")
         cmd.append(options_str)
     cmd.append(f"{server}:{remotepath}")
     cmd.append(fullpath)
-    check_cmd = ["&&", "while", "grep", "-qs", f"\"{fullpath} \"", "/proc/mounts;", "do", "sleep", "1;", "done"]
-    cmd += check_cmd
-    return ["sh", "-c", ' '.join(cmd)]
+    mount_command = shlex.join(cmd)
+    mount_path = shlex.quote(f"{fullpath} ")
+    check_command = (
+        f"while grep -qs {mount_path} /proc/mounts; do sleep 1; done"
+    )
+    return ["sh", "-c", f"{mount_command} && {check_command}"]

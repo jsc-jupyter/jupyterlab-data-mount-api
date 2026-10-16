@@ -21,7 +21,7 @@ import os
 #       Must be a positive integer. Generally set in the 64-2048
 #       range.
 #
-bind = "0.0.0.0:8090"
+bind = os.environ.get("GUNICORN_BIND", "127.0.0.1:8090")
 backlog = 2048
 preload_app = True
 
