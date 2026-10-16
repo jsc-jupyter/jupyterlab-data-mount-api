@@ -1,4 +1,4 @@
 nfs-utils==2.6.4-r6
-python3==3.12.15-r0
-py3-pip==25.1.1-r1
+python3==3.14.8-r0
+py3-pip==26.1.2-r0
 fuse==2.9.9-r7
