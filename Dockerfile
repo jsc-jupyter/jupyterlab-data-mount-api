@@ -1,4 +1,4 @@
-FROM rclone/rclone:1.73
+FROM rclone/rclone:1.75
 
 COPY requirements_apk.txt /opt/requirements_apk.txt
 COPY requirements.txt /opt/requirements.txt
