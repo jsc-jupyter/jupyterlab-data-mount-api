@@ -8,6 +8,7 @@ from fastapi import Response
 from fastapi.responses import JSONResponse
 from log import getLogger
 from models import DataMountModel
+from template_policy import is_template_allowed
 from values import base_mount_dir
 
 
@@ -28,6 +29,13 @@ log = getLogger()
 
 @app.post("/")
 async def post(item: DataMountModel):
+    if not is_template_allowed(
+        item.options.template, os.environ.get("JUPYTERLAB_DATA_MOUNT_TEMPLATES")
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"Mount template '{item.options.template}' is not allowed"},
+        )
     try:
         utils.validate(item)
     except Exception as e:
