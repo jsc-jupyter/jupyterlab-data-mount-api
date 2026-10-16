@@ -21,3 +21,15 @@ def resolve_mount_path(path: str, base_dir: str) -> str:
             raise ValueError("Mount path must not traverse symbolic links")
 
     return full_path
+
+
+def validate_no_mount_overlap(path: str, mounted_paths: set[str]) -> None:
+    for mounted_path in mounted_paths:
+        if (
+            path == mounted_path
+            or path.startswith(mounted_path + os.sep)
+            or mounted_path.startswith(path + os.sep)
+        ):
+            raise ValueError(
+                f"Mount path '{path}' overlaps active mount '{mounted_path}'"
+            )

@@ -8,7 +8,7 @@ import uftp
 import nfs
 from log import getLogger
 from models import DataMountModel
-from path_utils import resolve_mount_path
+from path_utils import resolve_mount_path, validate_no_mount_overlap
 from values import base_mount_dir
 from values import gid
 from values import uid
@@ -54,6 +54,7 @@ async def obscure(value: str):
 
 def validate(item: DataMountModel):
     resolve_mount_path(item.path, base_mount_dir)
+    validate_no_mount_overlap(item.path, set(mounts))
     if not item.options.template:
         raise Exception("options.template not provided")
     if item.options.template == "nfs":

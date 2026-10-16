@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from project.path_utils import resolve_mount_path
+from project.path_utils import resolve_mount_path, validate_no_mount_overlap
 
 
 class ResolveMountPathTests(unittest.TestCase):
@@ -34,6 +34,17 @@ class ResolveMountPathTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 resolve_mount_path("link/mount", str(base_dir))
+
+    def test_rejects_mount_nested_under_existing_mount(self):
+        with self.assertRaises(ValueError):
+            validate_no_mount_overlap("storage/nested", {"storage"})
+
+    def test_rejects_mount_that_would_cover_existing_mount(self):
+        with self.assertRaises(ValueError):
+            validate_no_mount_overlap("storage", {"storage/nested"})
+
+    def test_allows_sibling_mounts(self):
+        validate_no_mount_overlap("storage-two", {"storage"})
 
 
 if __name__ == "__main__":
