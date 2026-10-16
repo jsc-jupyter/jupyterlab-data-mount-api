@@ -1,5 +1,6 @@
 import ipaddress
 import os
+import shlex
 
 from models import DataMountModel
 from values import base_mount_dir
@@ -62,17 +63,20 @@ def cmd(item: DataMountModel):
     cmd = [
         "timeout",
         "3s",
-        "mount.nfs4"
+        "mount.nfs4",
     ]
     options = []
     if item.options.readonly:
         options.append("ro")
     if len(options) > 0:
-        options_str = ','.join(options)
+        options_str = ",".join(options)
         cmd.append("-o")
         cmd.append(options_str)
     cmd.append(f"{server}:{remotepath}")
     cmd.append(fullpath)
-    check_cmd = ["&&", "while", "grep", "-qs", f"\"{fullpath} \"", "/proc/mounts;", "do", "sleep", "1;", "done"]
-    cmd += check_cmd
-    return ["sh", "-c", ' '.join(cmd)]
+    mount_command = shlex.join(cmd)
+    mount_path = shlex.quote(f"{fullpath} ")
+    check_command = (
+        f"while grep -qs {mount_path} /proc/mounts; do sleep 1; done"
+    )
+    return ["sh", "-c", f"{mount_command} && {check_command}"]
