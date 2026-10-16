@@ -73,6 +73,7 @@ workers = 1
 threads = 5
 
 worker_class = "uvicorn.workers.UvicornWorker"
+control_socket_disable = True
 # worker_connections = 1000
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", 30))
 keepalive = 2
