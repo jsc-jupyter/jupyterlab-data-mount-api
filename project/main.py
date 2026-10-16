@@ -29,6 +29,7 @@ log = getLogger()
 
 @app.post("/")
 async def post(item: DataMountModel):
+    item.options.external = False
     if not is_template_allowed(
         item.options.template, os.environ.get("JUPYTERLAB_DATA_MOUNT_TEMPLATES")
     ):
